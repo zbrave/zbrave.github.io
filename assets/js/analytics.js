@@ -57,13 +57,13 @@ const Analytics = {
     checkPageRefresh: function(page) {
         const visits = JSON.parse(localStorage.getItem(this.KEYS.VISITS) || '[]');
         const now = new Date().getTime();
-        const refreshTimeThreshold = 10 * 1000; // 10 saniye
+        const refreshTimeThreshold = 1 * 1000; // 1 saniye
         
         // Son ziyareti kontrol et
         if (visits.length > 0) {
             const lastVisit = visits[visits.length - 1];
             
-            // Aynı sayfa mı ve son 10 saniye içinde mi?
+            // Aynı sayfa mı ve son 1 saniye içinde mi?
             if (lastVisit.page === page && (now - lastVisit.timestamp) < refreshTimeThreshold) {
                 return true; // Sayfa yenileme tespit edildi
             }
@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
         Analytics.recordVisit();
         
         // Sosyal medya bağlantılarına tıklama olaylarını dinle
-        document.querySelectorAll('a[href*="facebook.com"], a[href*="instagram.com"], a[href*="twitter.com"], a[href*="linkedin.com"]').forEach(link => {
+        document.querySelectorAll('a[href*="facebook.com"], a[href*="instagram.com"], a[href*="twitter.com"], a[href*="linkedin.com"], a[href*="youtube.com"], a[href*="tiktok.com"], a[href*="wa.me"]').forEach(link => {
             link.addEventListener('click', function(e) {
                 let platform = 'other';
                 const href = this.href.toLowerCase();
@@ -269,10 +269,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     platform = 'Twitter';
                 } else if (href.includes('linkedin.com')) {
                     platform = 'LinkedIn';
+                } else if (href.includes('youtube.com')) {
+                    platform = 'YouTube';
+                } else if (href.includes('tiktok.com')) {
+                    platform = 'TikTok';
+                } else if (href.includes('wa.me')) {
+                    platform = 'WhatsApp';
                 }
                 
                 Analytics.recordSocialClick(platform);
+                console.log(`Sosyal medya tıklaması kaydedildi: ${platform}`);
             });
+        });
+        
+        // WhatsApp butonuna da event listener ekle (class kullanarak)
+        document.querySelectorAll('.whatsapp-button, a.social-link-large[title="WhatsApp"]').forEach(link => {
+            if (!link.getAttribute('data-analytics-bound')) {
+                link.setAttribute('data-analytics-bound', 'true');
+                link.addEventListener('click', function(e) {
+                    Analytics.recordSocialClick('WhatsApp');
+                    console.log('WhatsApp butonu tıklaması kaydedildi');
+                });
+            }
         });
     }
 }); 
