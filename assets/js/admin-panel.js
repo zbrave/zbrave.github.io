@@ -246,14 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Panel açıldığında hemen istatistikleri yükle
             this.loadStats();
             
-            // Menü geçişleri için olay dinleyicileri
-            const statsLink = document.getElementById('statsLink');
-            if (statsLink) {
-                statsLink.addEventListener('click', () => {
-                    this.loadStats();
-                });
-            }
-            
+            // Menü geçişleri için olay dinleyicileri kurulumu
             this.setupEventListeners();
         },
 
