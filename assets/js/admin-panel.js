@@ -243,15 +243,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const AdminPanel = {
         // Tüm istatistikleri yükle ve göster
         init() {
-            // İstatistik bölümüne geçiş yapıldığında verileri yükle
+            // Panel açıldığında hemen istatistikleri yükle
+            this.loadStats();
+            
+            // Menü geçişleri için olay dinleyicileri
             const statsLink = document.getElementById('statsLink');
             if (statsLink) {
                 statsLink.addEventListener('click', () => {
                     this.loadStats();
                 });
-            } else {
-                // Eğer bölümlere ayrılmış bir menü yoksa, direk olarak istatistikleri yükle
-                this.loadStats();
             }
             
             this.setupEventListeners();
@@ -259,8 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // İstatistik verilerini localStorage'dan yükle
         loadStats() {
-            // İstatistik bölümlerini kontrol et ve varsa göster
-            if (document.getElementById('analytics-section')) {
+            // Dashboard sayfasında istatistikleri göster
+            if (document.getElementById('dashboard-section')) {
                 this.displayVisitStats();
                 this.displayPageStats();
                 this.displayReferrerStats();
@@ -684,6 +684,58 @@ document.addEventListener('DOMContentLoaded', () => {
             if (exportDataBtn) {
                 exportDataBtn.addEventListener('click', () => this.exportData());
             }
+            
+            // Hızlı yazı ekleme bağlantısı
+            const quickAddLink = document.getElementById('quickAddLink');
+            if (quickAddLink) {
+                quickAddLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Tüm bölümleri gizle
+                    const sections = document.querySelectorAll('.section');
+                    sections.forEach(section => section.classList.add('d-none'));
+                    
+                    // Yeni yazı ekleme bölümünü göster
+                    const addPostSection = document.getElementById('add-post-section');
+                    if (addPostSection) {
+                        addPostSection.classList.remove('d-none');
+                    }
+                    
+                    // Menü linklerini güncelle
+                    const menuLinks = document.querySelectorAll('.nav-link');
+                    menuLinks.forEach(link => link.classList.remove('active'));
+                    
+                    const addPostLink = document.getElementById('addPostLink');
+                    if (addPostLink) {
+                        addPostLink.classList.add('active');
+                    }
+                });
+            }
+            
+            // Yeni yazı ekleme butonu
+            const newPostBtn = document.getElementById('newPostBtn');
+            if (newPostBtn) {
+                newPostBtn.addEventListener('click', function() {
+                    // Tüm bölümleri gizle
+                    const sections = document.querySelectorAll('.section');
+                    sections.forEach(section => section.classList.add('d-none'));
+                    
+                    // Yeni yazı ekleme bölümünü göster
+                    const addPostSection = document.getElementById('add-post-section');
+                    if (addPostSection) {
+                        addPostSection.classList.remove('d-none');
+                    }
+                    
+                    // Menü linklerini güncelle
+                    const menuLinks = document.querySelectorAll('.nav-link');
+                    menuLinks.forEach(link => link.classList.remove('active'));
+                    
+                    const addPostLink = document.getElementById('addPostLink');
+                    if (addPostLink) {
+                        addPostLink.classList.add('active');
+                    }
+                });
+            }
         }
     };
 
@@ -775,9 +827,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Kontrol panelindeki sayıları güncelle
         updateDashboardNumbers(blogPosts);
         
-        // En son eklenen yazıları göster
-        displayRecentPosts(blogPosts);
-        
         // Tüm yazıları listele
         displayAllPosts(blogPosts);
     }
@@ -797,36 +846,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Son eklenen yazıları göster
-    function displayRecentPosts(posts) {
-        const recentPostsTable = document.getElementById('recentPostsTable');
-        if (!recentPostsTable) return;
-        
-        recentPostsTable.innerHTML = '';
-        
-        // Yazıları tarihe göre sırala ve son 5 tanesini al
-        const recentPosts = [...posts].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
-        
-        recentPosts.forEach(post => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${post.title}</td>
-                <td><span class="badge ${getCategoryBadgeClass(post.category)}">${post.category}</span></td>
-                <td>${new Date(post.date).toLocaleDateString('tr-TR')}</td>
-                <td>${post.views || 0}</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editPost(${post.id})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deletePost(${post.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            `;
-            recentPostsTable.appendChild(row);
-        });
-    }
-    
     // Tüm yazıları göster
     function displayAllPosts(posts) {
         const allPostsTable = document.getElementById('allPostsTable');
@@ -836,6 +855,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Yazıları ekleme tarihine göre sırala (en yeniden en eskiye)
         const sortedPosts = [...posts].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (sortedPosts.length === 0) {
+            // Blog yazısı yoksa bilgi mesajı göster
+            const row = document.createElement('tr');
+            row.innerHTML = `<td colspan="6" class="text-center">Henüz blog yazısı bulunmuyor. Yeni yazı eklemek için "Yeni Yazı" butonuna tıklayın.</td>`;
+            allPostsTable.appendChild(row);
+            return;
+        }
         
         sortedPosts.forEach(post => {
             const row = document.createElement('tr');
