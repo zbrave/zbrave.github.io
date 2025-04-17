@@ -248,6 +248,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Menü geçişleri için olay dinleyicileri kurulumu
             this.setupEventListeners();
+            
+            // Kategorileri yükle
+            this.loadCategories();
+            this.updateCategoryDropdown();
         },
 
         // İstatistik verilerini localStorage'dan yükle
@@ -665,6 +669,231 @@ document.addEventListener('DOMContentLoaded', () => {
             exportLink.setAttribute('download', 'analytics_data.json');
             exportLink.click();
         },
+        
+        // Kategorileri yükle
+        loadCategories() {
+            const categories = JSON.parse(localStorage.getItem('categories') || '[]');
+            const categoriesTable = document.getElementById('categoriesTable');
+            
+            if (!categoriesTable) return;
+            
+            categoriesTable.innerHTML = '';
+            
+            if (categories.length === 0) {
+                categoriesTable.innerHTML = `<tr><td colspan="5" class="text-center">Henüz kategori bulunmuyor.</td></tr>`;
+                return;
+            }
+            
+            // Blog yazılarını al
+            const posts = JSON.parse(localStorage.getItem('blogPosts') || '[]');
+            
+            categories.forEach(category => {
+                // Kategoriye ait yazı sayısını hesapla
+                const postCount = posts.filter(post => post.category === category.name).length;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${category.id}</td>
+                    <td>${category.name}</td>
+                    <td><span class="badge bg-${category.color}">${category.name}</span></td>
+                    <td>${postCount}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="AdminPanel.editCategory(${category.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="AdminPanel.deleteCategory(${category.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                categoriesTable.appendChild(row);
+            });
+        },
+        
+        // Kategori düzenleme
+        editCategory(categoryId) {
+            const categories = JSON.parse(localStorage.getItem('categories') || '[]');
+            const category = categories.find(c => c.id === categoryId);
+            
+            if (!category) return;
+            
+            // Modal'ı aç
+            document.getElementById('category-id').value = category.id;
+            document.getElementById('category-name').value = category.name;
+            document.getElementById('category-color').value = category.color;
+            
+            // Modal başlığını güncelle
+            document.getElementById('categoryModalLabel').textContent = 'Kategori Düzenle';
+            
+            // Modal'ı aç
+            const categoryModal = new bootstrap.Modal(document.getElementById('categoryModal'));
+            categoryModal.show();
+        },
+        
+        // Kategori silme
+        deleteCategory(categoryId) {
+            if (!confirm('Bu kategoriyi silmek istediğinize emin misiniz? Bu kategoriye ait tüm blog yazıları "Genel" kategorisine taşınacaktır.')) return;
+            
+            const categories = JSON.parse(localStorage.getItem('categories') || '[]');
+            const category = categories.find(c => c.id === categoryId);
+            
+            if (!category) {
+                alert('Kategori bulunamadı!');
+                return;
+            }
+            
+            const categoryName = category.name;
+            const updatedCategories = categories.filter(c => c.id !== categoryId);
+            
+            // Kategoriyi localStorage'dan kaldır
+            localStorage.setItem('categories', JSON.stringify(updatedCategories));
+            
+            // Bu kategoriye ait blog yazılarını güncelle
+            const blogPosts = JSON.parse(localStorage.getItem('blogPosts') || '[]');
+            let postsUpdated = false;
+            
+            // Her blog yazısını kontrol et ve gerekirse güncelle
+            blogPosts.forEach(post => {
+                if (post.category === categoryName) {
+                    post.category = 'Genel';
+                    postsUpdated = true;
+                }
+            });
+            
+            // Eğer yazı güncellemesi yapıldıysa localStorage'a kaydet
+            if (postsUpdated) {
+                localStorage.setItem('blogPosts', JSON.stringify(blogPosts));
+                console.log(`Kategori "${categoryName}" ile ilişkili tüm blog yazıları "Genel" kategorisine taşındı.`);
+            }
+            
+            // "Genel" kategorisi yoksa oluştur
+            let hasGeneralCategory = updatedCategories.some(c => c.name === 'Genel');
+            if (!hasGeneralCategory && postsUpdated) {
+                const generalCategory = {
+                    id: updatedCategories.length > 0 ? Math.max(...updatedCategories.map(c => c.id)) + 1 : 1,
+                    name: 'Genel',
+                    color: 'secondary'
+                };
+                
+                updatedCategories.push(generalCategory);
+                localStorage.setItem('categories', JSON.stringify(updatedCategories));
+            }
+            
+            // Kategori listesini güncelle
+            this.loadCategories();
+            
+            // Kategori dropdown'ını güncelle
+            this.updateCategoryDropdown();
+            
+            // Bildirim göster
+            if (postsUpdated) {
+                alert(`"${categoryName}" kategorisi silindi. İlgili tüm blog yazıları "Genel" kategorisine taşındı.`);
+            } else {
+                alert(`"${categoryName}" kategorisi silindi.`);
+            }
+        },
+        
+        // Kategori kaydetme
+        saveCategory() {
+            const categoryId = document.getElementById('category-id').value;
+            const categoryName = document.getElementById('category-name').value;
+            const categoryColor = document.getElementById('category-color').value;
+            
+            if (!categoryName) {
+                alert('Kategori adı zorunludur!');
+                return;
+            }
+            
+            const categories = JSON.parse(localStorage.getItem('categories') || '[]');
+            
+            if (categoryId) {
+                // Mevcut kategoriyi güncelle
+                const index = categories.findIndex(c => c.id === parseInt(categoryId));
+                if (index !== -1) {
+                    // Eski kategori adını sakla
+                    const oldCategoryName = categories[index].name;
+                    
+                    // Kategoriyi güncelle
+                    categories[index] = {
+                        ...categories[index],
+                        name: categoryName,
+                        color: categoryColor
+                    };
+                    
+                    // Kategori adı değiştiyse, ilgili blog yazılarını güncelle
+                    if (oldCategoryName !== categoryName) {
+                        const blogPosts = JSON.parse(localStorage.getItem('blogPosts') || '[]');
+                        let postsUpdated = false;
+                        
+                        // Her blog yazısını kontrol et ve gerekirse güncelle
+                        blogPosts.forEach(post => {
+                            if (post.category === oldCategoryName) {
+                                post.category = categoryName;
+                                postsUpdated = true;
+                            }
+                        });
+                        
+                        // Eğer yazı güncellemesi yapıldıysa localStorage'a kaydet
+                        if (postsUpdated) {
+                            localStorage.setItem('blogPosts', JSON.stringify(blogPosts));
+                            console.log(`Kategori "${oldCategoryName}" ile ilişkili tüm blog yazıları "${categoryName}" olarak güncellendi.`);
+                        }
+                    }
+                }
+            } else {
+                // Yeni kategori ekle
+                const newCategory = {
+                    id: categories.length > 0 ? Math.max(...categories.map(c => c.id)) + 1 : 1,
+                    name: categoryName,
+                    color: categoryColor
+                };
+                
+                categories.push(newCategory);
+            }
+            
+            localStorage.setItem('categories', JSON.stringify(categories));
+            
+            // Kategori dropdown'ını güncelle
+            this.updateCategoryDropdown();
+            
+            // Modal'ı kapat
+            const categoryModal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
+            categoryModal.hide();
+            
+            // Kategori listesini güncelle
+            this.loadCategories();
+            
+            // Post ekleme formundaki kategori seçeneklerini güncelle
+            this.updateCategoryOptions();
+            
+            // Blog yazılarının güncellendiğini kullanıcıya bildir
+            if (categoryId) {
+                alert('Kategori başarıyla güncellendi. İlgili tüm blog yazıları otomatik olarak güncellendi.');
+            } else {
+                alert('Yeni kategori başarıyla eklendi.');
+            }
+        },
+        
+        // Kategori seçeneklerini güncelle
+        updateCategoryOptions() {
+            const categorySelect = document.getElementById('post-category');
+            if (!categorySelect) return;
+            
+            const categories = JSON.parse(localStorage.getItem('categories') || '[]');
+            
+            // Mevcut seçenekleri temizle (ilk seçenek hariç)
+            while (categorySelect.options.length > 1) {
+                categorySelect.remove(1);
+            }
+            
+            // Yeni kategorileri ekle
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.name;
+                option.textContent = category.name;
+                categorySelect.appendChild(option);
+            });
+        },
 
         // Olay dinleyicilerini ayarla
         setupEventListeners() {
@@ -676,6 +905,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const exportDataBtn = document.getElementById('export-data-btn');
             if (exportDataBtn) {
                 exportDataBtn.addEventListener('click', () => this.exportData());
+            }
+            
+            // Yeni kategori butonu
+            const newCategoryBtn = document.getElementById('newCategoryBtn');
+            if (newCategoryBtn) {
+                newCategoryBtn.addEventListener('click', () => {
+                    // Form alanlarını temizle
+                    document.getElementById('category-id').value = '';
+                    document.getElementById('category-name').value = '';
+                    document.getElementById('category-color').value = 'primary';
+                    
+                    // Modal başlığını güncelle
+                    document.getElementById('categoryModalLabel').textContent = 'Yeni Kategori Ekle';
+                });
             }
             
             // Hızlı yazı ekleme bağlantısı
@@ -729,6 +972,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             }
+        },
+
+        // AdminPanel nesnesine updateCategoryDropdown metodunu ekle
+        updateCategoryDropdown: function() {
+            const categoryDropdown = document.getElementById('post-category');
+            if (!categoryDropdown) return;
+            
+            // Mevcut seçenekleri temizle
+            categoryDropdown.innerHTML = '<option value="">Kategori Seçin</option>';
+            
+            // Kategorileri localStorage'dan al
+            const categories = JSON.parse(localStorage.getItem('categories') || '[]');
+            
+            // Kategorileri dropdown'a ekle
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.name;
+                option.textContent = category.name;
+                categoryDropdown.appendChild(option);
+            });
         }
     };
 
@@ -789,9 +1052,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (targetSection) {
                     targetSection.classList.remove('d-none');
                     
-                    // Eğer istatistikler bölümüne geçildiyse, verileri yükle
-                    if (targetId === 'analytics-section') {
+                    // Sekmeye göre içeriği güncelle
+                    if (targetId === 'dashboard-section') {
+                        // Dashboard verilerini güncelle
                         AdminPanel.loadStats();
+                    } else if (targetId === 'blog-posts-section') {
+                        // Blog yazıları listesini güncelle
+                        loadBlogPosts();
+                        // Kategori dropdown'ını güncelle
+                        AdminPanel.updateCategoryDropdown();
+                    } else if (targetId === 'categories-section') {
+                        // Kategori listesini güncelle
+                        AdminPanel.loadCategories();
+                    } else if (targetId === 'add-post-section') {
+                        // Kategori dropdown'ını güncelle
+                        AdminPanel.updateCategoryDropdown();
                     }
                 }
             });
@@ -879,21 +1154,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Get badge class for category
-    function getCategoryBadgeClass(category) {
-        switch(category) {
-            case 'Sağlıklı Tarifler':
-                return 'bg-primary';
-            case 'Diyet':
-                return 'bg-info';
-            case 'Sağlıklı Yaşam':
-                return 'bg-success';
-            case 'Spor':
-                return 'bg-warning';
-            case 'Hamilelik':
-                return 'bg-danger';
-            default:
-                return 'bg-secondary';
+    function getCategoryBadgeClass(categoryName) {
+        // Kategorileri localStorage'dan al
+        const categories = JSON.parse(localStorage.getItem('categories') || '[]');
+        
+        // Kategori adına göre kategori nesnesini bul
+        const category = categories.find(cat => cat.name === categoryName);
+        
+        // Eğer kategori bulunduysa, onun rengini kullan
+        if (category && category.color) {
+            return `bg-${category.color}`;
         }
+        
+        // Kategori bulunamadıysa veya rengi yoksa, varsayılan renk kullan
+        return 'bg-secondary';
     }
 
     // Yazı düzenleme fonksiyonu
@@ -972,6 +1246,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 content = document.getElementById('post-content').value;
             } else {
                 content = window.editor.getData();
+            }
+            
+            // Form doğrulaması
+            if (!title) {
+                alert('Başlık zorunludur!');
+                return;
+            }
+            
+            if (!category) {
+                alert('Kategori seçimi zorunludur!');
+                return;
+            }
+            
+            if (!summary) {
+                alert('Özet zorunludur!');
+                return;
+            }
+            
+            if (!content) {
+                alert('İçerik zorunludur!');
+                return;
             }
             
             const posts = JSON.parse(localStorage.getItem('blogPosts') || '[]');
@@ -1089,6 +1384,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('CKEditor yüklenirken hata oluştu:', error);
             });
     }
+
+    // AdminPanel fonksiyonlarını global olarak erişilebilir yap
+    window.AdminPanel = AdminPanel;
 
     // Blog ve analitik verilerini yükle
     if (checkLoginStatus()) {

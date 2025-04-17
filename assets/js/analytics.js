@@ -26,7 +26,7 @@ const Analytics = {
             browser: this.getBrowserInfo()
         };
 
-        // Sayfa yenileme kontrolü (son 10 saniye içinde aynı sayfaya erişim var mı?)
+        // Sayfa yenileme kontrolü (son 1 saniye içinde aynı sayfaya erişim var mı?)
         const isPageRefresh = this.checkPageRefresh(visitData.page);
         
         // Sadece sayfa yenileme değilse ziyaret sayısını artır

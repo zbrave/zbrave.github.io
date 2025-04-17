@@ -1,8 +1,48 @@
-// AOS Animasyon Başlatma
-AOS.init({
-    duration: 1000,
-    once: true,
-    offset: 100
+// AOS Animasyon başlatma
+document.addEventListener('DOMContentLoaded', function() {
+    AOS.init({
+        duration: 800,
+        easing: 'ease-in-out',
+        once: true,
+        mirror: false
+    });
+
+    // Testimonial slider
+    new Swiper('.testimonial-slider', {
+        speed: 600,
+        loop: true,
+        autoplay: {
+            delay: 5000,
+            disableOnInteraction: false
+        },
+        slidesPerView: 'auto',
+        pagination: {
+            el: '.swiper-pagination',
+            type: 'bullets',
+            clickable: true
+        },
+        navigation: {
+            nextEl: '.swiper-button-next',
+            prevEl: '.swiper-button-prev',
+        },
+        breakpoints: {
+            320: {
+                slidesPerView: 1,
+                spaceBetween: 40
+            },
+            768: {
+                slidesPerView: 2,
+                spaceBetween: 40
+            },
+            1200: {
+                slidesPerView: 3,
+                spaceBetween: 40
+            }
+        }
+    });
+
+    // Blog yazılarını ana sayfada göster
+    displayBlogPostsOnHomepage();
 });
 
 // Navbar scroll effect
@@ -34,33 +74,6 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             });
         }
     });
-});
-
-// Testimonial Slider
-const testimonialSlider = new Swiper('.testimonial-slider', {
-    slidesPerView: 1,
-    spaceBetween: 30,
-    loop: true,
-    autoplay: {
-        delay: 5000,
-        disableOnInteraction: false,
-    },
-    pagination: {
-        el: '.swiper-pagination',
-        clickable: true,
-    },
-    navigation: {
-        nextEl: '.swiper-button-next',
-        prevEl: '.swiper-button-prev',
-    },
-    breakpoints: {
-        768: {
-            slidesPerView: 2,
-        },
-        1024: {
-            slidesPerView: 3,
-        }
-    }
 });
 
 // Form submission handling
@@ -182,4 +195,58 @@ if (whatsappButton) {
 const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
 tooltipTriggerList.map(function (tooltipTriggerEl) {
     return new bootstrap.Tooltip(tooltipTriggerEl);
-}); 
+});
+
+// Blog yazılarını ana sayfada göster
+function displayBlogPostsOnHomepage() {
+    const blogContainer = document.querySelector('#blog .row');
+    if (!blogContainer) return;
+
+    // Blog yazılarını localStorage'dan al
+    const blogPosts = JSON.parse(localStorage.getItem('blogPosts') || '[]');
+    
+    // Kategorileri localStorage'dan al
+    const categories = JSON.parse(localStorage.getItem('categories') || '[]');
+    
+    // Eğer blog yazısı yoksa varsayılan içeriği göster
+    if (blogPosts.length === 0) {
+        return;
+    }
+    
+    // Önceki içeriği temizle
+    blogContainer.innerHTML = '';
+    
+    // En son eklenen 3 yazıyı göster (varsa)
+    const recentPosts = [...blogPosts]
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 3);
+    
+    recentPosts.forEach(post => {
+        // Kategorinin rengini bul
+        let categoryColor = 'primary'; // varsayılan renk
+        const category = categories.find(cat => cat.name === post.category);
+        if (category && category.color) {
+            categoryColor = category.color;
+        }
+        
+        const postElement = document.createElement('div');
+        postElement.className = 'col-md-4';
+        postElement.setAttribute('data-aos', 'fade-up');
+        postElement.setAttribute('data-aos-delay', '100');
+        
+        // İçerik oluştur
+        postElement.innerHTML = `
+            <div class="blog-card">
+                <img src="${post.image || 'assets/images/hero-bg.jpg'}" alt="${post.title}" class="img-fluid">
+                <div class="blog-content">
+                    <span class="badge bg-${categoryColor} mb-2">${post.category}</span>
+                    <h4>${post.title}</h4>
+                    <p>${post.summary}</p>
+                    <a href="blog-post.html?id=${post.id}" class="btn btn-outline-primary">Devamını Oku</a>
+                </div>
+            </div>
+        `;
+        
+        blogContainer.appendChild(postElement);
+    });
+} 
